@@ -6,20 +6,67 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
+    // Get DOM elements
     const loginForm = document.getElementById('loginForm');
     const adminDashboard = document.getElementById('adminDashboard');
     const adminLoginForm = document.getElementById('adminLoginForm');
     const logoutBtn = document.getElementById('logoutBtn');
     const registrationsTable = document.getElementById('registrationsTable');
     const totalRegistrationsEl = document.getElementById('totalRegistrations');
-    const confirmedCountEl = document.getElementById('confirmedCount');
-    const waitingCountEl = document.getElementById('waitingCount');
+    const confirmedPlayersEl = document.getElementById('confirmedPlayers');
+    const waitingListEl = document.getElementById('waitingList');
 
     // Admin credentials (in production, this should be handled securely through Firebase Auth)
     const ADMIN_USERNAME = 'admin';
     const ADMIN_PASSWORD = 'AbedBernar123';
 
-    let registrations = [];
+    // Update statistics function
+    function updateStats(registrations) {
+        if (!totalRegistrationsEl || !confirmedPlayersEl || !waitingListEl) {
+            console.error('Stats elements not found');
+            return;
+        }
+
+        const totalCount = registrations.length;
+        
+        // Calculate current tier using the same logic as script.js
+        let currentTier = 8;
+        if (totalCount >= 64) currentTier = 64;
+        else if (totalCount >= 32) currentTier = 32;
+        else if (totalCount >= 16) currentTier = 16;
+
+        // Count confirmed and waiting players
+        const confirmedPlayers = registrations.filter(reg => reg.status === 'confirmed');
+        const waitingPlayers = registrations.filter(reg => reg.status === 'waiting');
+
+        // Sort by timestamp to ensure consistent ordering
+        const allPlayers = [...registrations].sort((a, b) => {
+            const timeA = a.timestamp ? a.timestamp.toDate().getTime() : 0;
+            const timeB = b.timestamp ? b.timestamp.toDate().getTime() : 0;
+            return timeA - timeB;
+        });
+
+        // Update player statuses based on their position
+        allPlayers.forEach((player, index) => {
+            if (index < currentTier && player.status === 'waiting') {
+                // Update to confirmed if within tier limit
+                db.collection('registrations')
+                    .where('email', '==', player.email)
+                    .limit(1)
+                    .get()
+                    .then(snapshot => {
+                        if (!snapshot.empty) {
+                            snapshot.docs[0].ref.update({ status: 'confirmed' });
+                        }
+                    });
+            }
+        });
+
+        // Update display
+        totalRegistrationsEl.textContent = totalCount;
+        confirmedPlayersEl.textContent = `${Math.min(currentTier, totalCount)}/${currentTier}`;
+        waitingListEl.textContent = Math.max(0, totalCount - currentTier);
+    }
 
     // Handle login
     adminLoginForm.addEventListener('submit', function(e) {
@@ -58,77 +105,68 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Update stats
-    function updateStats() {
-        const confirmed = registrations.filter(r => r.status === 'confirmed').length;
-        const waiting = registrations.filter(r => r.status === 'waiting').length;
-
-        totalRegistrationsEl.textContent = registrations.length;
-        confirmedCountEl.textContent = confirmed;
-        waitingCountEl.textContent = waiting;
-    }
-
     // Load and display registrations
     function loadRegistrations() {
-        try {
-            window.db.collection('registrations')
-                .orderBy('timestamp')
-                .onSnapshot((snapshot) => {
-                    registrations = snapshot.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data()
-                    }));
-                    updateRegistrationsTable();
-                    updateStats();
-                }, (error) => {
-                    console.error("Error loading registrations:", error);
-                    alert('Ett fel uppstod vid laddning av registreringar');
+        db.collection('registrations')
+            .orderBy('timestamp', 'desc')
+            .onSnapshot((snapshot) => {
+                if (!registrationsTable) {
+                    console.error('Registrations table not found');
+                    return;
+                }
+
+                registrationsTable.innerHTML = ''; // Clear existing rows
+                let index = 1;
+                const registrations = [];
+
+                snapshot.forEach((doc) => {
+                    const registration = doc.data();
+                    registrations.push(registration);
+                    const row = document.createElement('tr');
+                    
+                    const timestamp = registration.timestamp ? registration.timestamp.toDate() : new Date();
+                    const formattedDate = timestamp.toLocaleDateString('sv-SE') + ' ' + 
+                                        timestamp.toLocaleTimeString('sv-SE');
+
+                    row.innerHTML = `
+                        <td>${index}</td>
+                        <td>${registration.name}</td>
+                        <td>${registration.email}</td>
+                        <td>${registration.className}</td>
+                        <td>${registration.status}</td>
+                        <td>${formattedDate}</td>
+                        <td>
+                            <button onclick="removeRegistration('${doc.id}')" class="btn btn-danger btn-sm">
+                                Ta bort
+                            </button>
+                        </td>
+                    `;
+                    registrationsTable.appendChild(row);
+                    index++;
                 });
-        } catch (error) {
-            console.error("Error setting up registration listener:", error);
-            alert('Ett fel uppstod vid anslutning till databasen');
-        }
+
+                // Update statistics with the collected registrations
+                updateStats(registrations);
+            }, (error) => {
+                console.error("Error loading registrations:", error);
+            });
     }
 
-    // Update registrations table
-    function updateRegistrationsTable() {
-        registrationsTable.innerHTML = '';
-        
-        registrations.forEach((reg, index) => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${index + 1}</td>
-                <td>${reg.name}</td>
-                <td>${reg.email}</td>
-                <td>${reg.className}</td>
-                <td>
-                    <span class="status-badge ${reg.status === 'confirmed' ? 'status-confirmed' : 'status-waiting'}">
-                        ${reg.status === 'confirmed' ? 'Bekräftad' : 'I kö'}
-                    </span>
-                </td>
-                <td>${formatTimestamp(reg.timestamp)}</td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn btn-danger btn-sm" onclick="removeRegistration('${reg.id}')">
-                            Ta bort
-                        </button>
-                    </div>
-                </td>
-            `;
-            registrationsTable.appendChild(tr);
-        });
-    }
-
-    // Remove registration
-    window.removeRegistration = async function(id) {
+    // Remove a registration
+    window.removeRegistration = async function(docId) {
         if (confirm('Är du säker på att du vill ta bort denna registrering?')) {
             try {
-                await window.db.collection('registrations').doc(id).delete();
-                alert('Registrering borttagen');
+                await db.collection('registrations').doc(docId).delete();
+                // Stats will update automatically through the snapshot listener
             } catch (error) {
                 console.error("Error removing registration:", error);
-                alert('Ett fel uppstod vid borttagning av registrering');
+                alert('Ett fel uppstod när registreringen skulle tas bort');
             }
         }
     };
+
+    // Check if user is already logged in (dashboard is visible)
+    if (!adminDashboard.classList.contains('d-none')) {
+        loadRegistrations();
+    }
 }); 

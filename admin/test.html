@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="sv" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkolIF Test - Schackturnering</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../styles.css" rel="stylesheet">
+    <link href="admin.css" rel="stylesheet">
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                SkolIF Test ♔ Schackturnering 2025
+            </a>
+        </div>
+    </nav>
+
+    <div class="container my-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card shadow">
+                    <div class="card-body">
+                        <h1 class="text-center mb-4">Test Dashboard</h1>
+                        
+                        <div class="d-grid gap-3">
+                            <button onclick="addTestRegistrations(3)" class="btn btn-primary">
+                                Add 3 Test Registrations
+                            </button>
+                            <button onclick="addTestRegistrations(8)" class="btn btn-primary">
+                                Fill First Tier (8 Players)
+                            </button>
+                            <button onclick="addTestRegistrations(16)" class="btn btn-success">
+                                Fill Second Tier (16 Players)
+                            </button>
+                            <button onclick="addTestRegistrations(32)" class="btn btn-warning">
+                                Fill Third Tier (32 Players)
+                            </button>
+                            <button onclick="addTestRegistrations(64)" class="btn btn-danger">
+                                Fill Max Tier (64 Players)
+                            </button>
+                            <button onclick="clearAllRegistrations()" class="btn btn-outline-danger">
+                                Clear All Registrations
+                            </button>
+                        </div>
+
+                        <div class="mt-4">
+                            <h3>Current Status:</h3>
+                            <p id="statusText">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../firebase-config.js"></script>
+    <script>
+        let currentCount = 0;
+
+        // Update status
+        function updateStatus() {
+            const statusText = document.getElementById('statusText');
+            db.collection('registrations').get().then(snapshot => {
+                currentCount = snapshot.size;
+                statusText.innerHTML = `
+                    Total Registrations: ${currentCount}<br>
+                    Current Tier: ${getCurrentTier(currentCount)}<br>
+                    Next Tier: ${getNextTier(currentCount)}
+                `;
+            });
+        }
+
+        // Get current tier based on count
+        function getCurrentTier(count) {
+            if (count < 8) return '8';
+            if (count < 16) return '8';
+            if (count < 32) return '16';
+            if (count < 64) return '32';
+            return '64';
+        }
+
+        // Get next tier based on count
+        function getNextTier(count) {
+            if (count < 8) return '8';
+            if (count < 16) return '16';
+            if (count < 32) return '32';
+            if (count < 64) return '64';
+            return 'Max reached';
+        }
+
+        // Generate random test data
+        function generateTestData(index) {
+            const classes = ['7A', '7B', '7C', '7D', '8A', '8B', '8C', '8D', '8E', '8F', '9B', '9C', '9D', '9E'];
+            const randomClass = classes[Math.floor(Math.random() * classes.length)];
+            
+            return {
+                name: `Test Player ${index}`,
+                email: `test.player${index}@elev.gnesta.se`,
+                className: randomClass,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                status: index < 8 ? 'confirmed' : 'waiting'
+            };
+        }
+
+        // Add test registrations
+        async function addTestRegistrations(targetCount) {
+            const batch = db.batch();
+            const snapshot = await db.collection('registrations').get();
+            const currentCount = snapshot.size;
+
+            // If we want to add 3 registrations, we should add exactly 3 regardless of current count
+            const isSpecificCount = targetCount === 3;
+            
+            // For tier filling, check if we already have enough
+            if (!isSpecificCount && currentCount >= targetCount) {
+                alert('Already have enough registrations!');
+                return;
+            }
+
+            // Calculate how many to add
+            const numberToAdd = isSpecificCount ? 3 : (targetCount - currentCount);
+
+            for (let i = 0; i < numberToAdd; i++) {
+                const docRef = db.collection('registrations').doc();
+                batch.set(docRef, generateTestData(currentCount + i + 1));
+            }
+
+            try {
+                await batch.commit();
+                alert(`Added ${numberToAdd} test registrations`);
+                updateStatus();
+            } catch (error) {
+                console.error('Error adding test data:', error);
+                alert('Error adding test data');
+            }
+        }
+
+        // Clear all registrations
+        async function clearAllRegistrations() {
+            if (!confirm('Are you sure you want to delete ALL registrations?')) {
+                return;
+            }
+
+            const batch = db.batch();
+            const snapshot = await db.collection('registrations').get();
+
+            snapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+
+            try {
+                await batch.commit();
+                alert('All registrations cleared');
+                updateStatus();
+            } catch (error) {
+                console.error('Error clearing registrations:', error);
+                alert('Error clearing registrations');
+            }
+        }
+
+        // Initial status update
+        updateStatus();
+    </script>
+</body>
+</html> 
