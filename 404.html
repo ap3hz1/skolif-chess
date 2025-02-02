@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Redirecting...</title>
+    <script>
+        // Get the current path
+        const path = window.location.pathname;
+        
+        // Handle different routes
+        if (path.includes('/admin')) {
+            window.location.href = '/admin/index.html';
+        } else {
+            window.location.href = '/index.html';
+        }
+    </script>
+</head>
+<body>
+    Redirecting...
+</body>
+</html> 

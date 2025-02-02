@@ -1,0 +1,6 @@
+include:
+  - "_*"
+  - ".*"
+  - "admin/*"
+
+permalink: pretty 

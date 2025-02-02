@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const waitingCount = document.getElementById('waitingCount');
 
     let currentTier = 8; // Starting with 8 players
+    let nextTier = 16;  // Next tier target
     let registrations = [];
 
     // Add animation class to form on load
@@ -72,7 +73,11 @@ document.addEventListener('DOMContentLoaded', function() {
             timestamp.textContent = formatTimestamp(reg.timestamp);
             listItem.appendChild(timestamp);
 
-            if (index < currentTier) {
+            // Determine if player should be confirmed or waiting
+            const totalRegistered = registrations.length;
+            const confirmedPlayers = Math.min(currentTier, totalRegistered);
+
+            if (index < confirmedPlayers) {
                 confirmedList.appendChild(listItem);
             } else {
                 waitingList.appendChild(listItem);
@@ -80,14 +85,36 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         // Update counts
-        confirmedCount.textContent = `(${Math.min(registrations.length, currentTier)}/${currentTier})`;
-        waitingCount.textContent = `(${Math.max(0, registrations.length - currentTier)})`;
+        const totalRegistered = registrations.length;
+        confirmedCount.textContent = `(${Math.min(currentTier, totalRegistered)}/${currentTier})`;
+        waitingCount.textContent = `(${Math.max(0, totalRegistered - currentTier)})`;
 
         // Check if we need to increase the tier
-        if (registrations.length >= currentTier) {
-            if (currentTier === 8) currentTier = 16;
-            else if (currentTier === 16) currentTier = 32;
-            else if (currentTier === 32) currentTier = 64;
+        if (totalRegistered >= nextTier) {
+            if (currentTier === 8) {
+                currentTier = 16;
+                nextTier = 32;
+            } else if (currentTier === 16) {
+                currentTier = 32;
+                nextTier = 64;
+            } else if (currentTier === 32) {
+                currentTier = 64;
+                nextTier = 64; // Max tier
+            }
+
+            // Update all registrations status
+            registrations.forEach(async (reg, index) => {
+                const newStatus = index < currentTier ? 'confirmed' : 'waiting';
+                if (reg.status !== newStatus) {
+                    try {
+                        await db.collection('registrations').doc(reg.id).update({
+                            status: newStatus
+                        });
+                    } catch (error) {
+                        console.error('Error updating registration status:', error);
+                    }
+                }
+            });
         }
     }
 

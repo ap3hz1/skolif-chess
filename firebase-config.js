@@ -9,17 +9,17 @@ const firebaseConfig = {
     measurementId: "G-6JZHCXC9KT"
 };
 
-let db;
-
 // Initialize Firebase
 try {
-    firebase.initializeApp(firebaseConfig);
-    firebase.analytics();
-    db = firebase.firestore();
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+
+    // Initialize Firestore
+    const db = firebase.firestore();
+    window.db = db; // Make db globally available
+
     console.log("Firebase initialized successfully");
 } catch (error) {
     console.error("Error initializing Firebase:", error);
-}
-
-// Export the database instance
-window.db = db; 
+} 
