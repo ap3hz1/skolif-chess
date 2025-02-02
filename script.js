@@ -12,27 +12,26 @@ document.addEventListener('DOMContentLoaded', async function() {
     const confirmedCountEl = document.getElementById('confirmedCount');
     const waitingCountEl = document.getElementById('waitingCount');
 
-    // Check if user has already registered and verify if registration still exists
-    const hasRegistered = localStorage.getItem('hasRegistered');
+    // Check if user has already registered
     const storedEmail = localStorage.getItem('registeredEmail');
     
-    if (hasRegistered && storedEmail) {
-        // Check if the registration still exists in the database
+    if (storedEmail) {
+        // Check if the email still exists in the database
         const emailSnapshot = await db.collection('registrations')
             .where('email', '==', storedEmail)
             .get();
 
         if (emailSnapshot.empty) {
-            // Registration no longer exists, clear localStorage
+            // Email no longer exists in database, clear localStorage
             localStorage.removeItem('hasRegistered');
             localStorage.removeItem('registeredEmail');
             localStorage.removeItem('registrationId');
         } else {
-            // Registration still exists, show the message
+            // Email still exists, show the message
             form.innerHTML = `
                 <div class="alert alert-info" role="alert">
                     <h4 class="alert-heading">Du är redan anmäld!</h4>
-                    <p>Du har redan registrerat dig från denna enhet. Om detta är ett misstag eller om du behöver göra ändringar, 
+                    <p>Du har redan registrerat dig med denna e-postadress. Om detta är ett misstag eller om du behöver göra ändringar, 
                     kontakta administratören.</p>
                     <hr>
                     <p class="mb-0">E-post som användes: ${storedEmail}</p>
@@ -44,12 +43,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Handle form submission
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
-
-        // Check if already registered
-        if (hasRegistered) {
-            alert('Du har redan registrerat dig från denna enhet.');
-            return;
-        }
 
         if (!form.checkValidity()) {
             e.stopPropagation();
@@ -70,8 +63,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
         // Check if email is already registered
-        const emailExists = await checkEmailExists(email);
-        if (emailExists) {
+        const emailSnapshot = await db.collection('registrations')
+            .where('email', '==', email)
+            .get();
+
+        if (!emailSnapshot.empty) {
             alert('Denna e-postadress är redan registrerad.');
             return;
         }
@@ -80,11 +76,33 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Get device information
             const deviceInfo = {
                 userAgent: navigator.userAgent,
-                platform: navigator.platform,
-                vendor: navigator.vendor,
-                language: navigator.language,
+                platform: navigator.platform || 'unknown',
+                vendor: navigator.vendor || 'unknown',
+                language: navigator.language || 'unknown',
                 screenResolution: `${window.screen.width}x${window.screen.height}`,
-                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                // Add more detailed mobile information
+                isMobile: /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent),
+                deviceType: /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
+                operatingSystem: (function() {
+                    const ua = navigator.userAgent;
+                    if (/Windows/i.test(ua)) return 'Windows';
+                    if (/Android/i.test(ua)) return 'Android';
+                    if (/iPhone|iPad|iPod/i.test(ua)) return 'iOS';
+                    if (/Mac/i.test(ua)) return 'MacOS';
+                    if (/Linux/i.test(ua)) return 'Linux';
+                    return 'Unknown';
+                })(),
+                browser: (function() {
+                    const ua = navigator.userAgent;
+                    if (/Chrome/i.test(ua)) return 'Chrome';
+                    if (/Firefox/i.test(ua)) return 'Firefox';
+                    if (/Safari/i.test(ua)) return 'Safari';
+                    if (/Edge/i.test(ua)) return 'Edge';
+                    if (/Opera|OPR/i.test(ua)) return 'Opera';
+                    return 'Unknown';
+                })(),
+                touchScreen: 'ontouchstart' in window || navigator.maxTouchPoints > 0
             };
 
             // Get IP address using ipify API

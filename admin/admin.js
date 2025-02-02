@@ -129,12 +129,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                         timestamp.toLocaleTimeString('sv-SE');
 
                     // Create a details string for the tooltip
-                    const deviceDetails = registration.deviceInfo ? `
+                    const deviceInfo = registration.deviceInfo ? `
                         IP: ${registration.ipAddress || 'N/A'}
-                        Enhet: ${registration.deviceInfo.platform || 'N/A'}
-                        Webbläsare: ${registration.deviceInfo.userAgent.split(') ')[0] + ')' || 'N/A'}
+                        Enhetstyp: ${registration.deviceInfo.deviceType || 'N/A'}
+                        Operativsystem: ${registration.deviceInfo.operatingSystem || 'N/A'}
+                        Webbläsare: ${registration.deviceInfo.browser || 'N/A'}
                         Skärm: ${registration.deviceInfo.screenResolution || 'N/A'}
                         Språk: ${registration.deviceInfo.language || 'N/A'}
+                        Pekskärm: ${registration.deviceInfo.touchScreen ? 'Ja' : 'Nej'}
                     `.replace(/\n\s+/g, '\n') : 'Ingen enhetsinformation tillgänglig';
 
                     row.innerHTML = `
@@ -148,7 +150,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <button class="btn btn-info btn-sm me-2" 
                                 data-bs-toggle="tooltip" 
                                 data-bs-placement="left" 
-                                title="${deviceDetails.replace(/"/g, '&quot;')}">
+                                title="${deviceInfo.replace(/"/g, '&quot;')}">
                                 <i class="bi bi-info-circle"></i> Info
                             </button>
                             <button onclick="removeRegistration('${doc.id}')" class="btn btn-danger btn-sm">
