@@ -1,0 +1,255 @@
+:root {
+    --skolif-primary: #004d99;    /* Deep blue for main color */
+    --skolif-secondary: #ffffff;  /* White for accents (previously gold) */
+    --skolif-dark: #002952;      /* Darker blue */
+    --skolif-light: #ffffff;     /* White (previously light blue) */
+    --skolif-gray: #2c3e50;      /* Professional gray */
+    --chess-black: #1a1a1a;
+    --chess-red: #dc3545;
+    --chess-gray: #343a40;
+    --chess-gold: #ffffff;
+    --chess-green: #198754;
+}
+
+body {
+    background-color: var(--chess-black);
+    background-image: 
+        linear-gradient(rgba(26, 26, 26, 0.92), rgba(26, 26, 26, 0.92)),
+        repeating-conic-gradient(
+            var(--chess-black) 0% 25%,
+            var(--chess-gray) 0% 50%
+        );
+    background-size: 60px 60px;
+    min-height: 100vh;
+    position: relative;
+}
+
+.navbar {
+    background: linear-gradient(to right, var(--chess-black), var(--chess-gray)) !important;
+    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+    border-bottom: 3px solid var(--chess-red);
+    padding: 1rem 0;
+}
+
+.navbar-brand {
+    color: var(--chess-gold) !important;
+    font-weight: bold;
+    font-size: 1.5rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s ease;
+}
+
+.navbar-brand:hover {
+    transform: scale(1.05);
+    color: var(--chess-red) !important;
+}
+
+.card {
+    border: none;
+    border-radius: 20px;
+    background: linear-gradient(145deg, var(--chess-gray), var(--chess-black));
+    box-shadow: 0 10px 30px rgba(220, 53, 69, 0.2),
+                0 0 0 2px rgba(220, 53, 69, 0.5);
+    transform: translateY(0);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(220, 53, 69, 0.3),
+                0 0 0 3px rgba(220, 53, 69, 0.6);
+}
+
+.card-body {
+    padding: 2.5rem;
+}
+
+h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--chess-gold);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+h1::before, h1::after {
+    content: "♟";
+    margin: 0 15px;
+    color: var(--chess-red);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.form-control, .form-select {
+    background-color: rgba(26, 26, 26, 0.8);
+    border: 2px solid var(--chess-gray);
+    color: #fff;
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: rgba(26, 26, 26, 0.9);
+    border-color: var(--chess-red);
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+    transform: translateY(-2px);
+}
+
+.form-label {
+    color: var(--chess-gold);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.btn-primary {
+    padding: 1rem 2.5rem;
+    font-weight: 600;
+    font-size: 1.1rem;
+    background: linear-gradient(45deg, var(--chess-red), #ff4757);
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(45deg, #ff4757, var(--chess-red));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+}
+
+.btn-primary:active {
+    transform: translateY(1px);
+}
+
+footer {
+    border-top: 3px solid var(--chess-red);
+    background: linear-gradient(to right, var(--chess-black), var(--chess-gray)) !important;
+    color: var(--chess-gold);
+    padding: 1.5rem 0;
+    position: relative;
+    margin-top: 3rem;
+}
+
+.alert-success {
+    background: linear-gradient(145deg, var(--chess-gray), var(--chess-black));
+    border: 2px solid var(--chess-gold);
+    color: var(--chess-gold);
+    border-radius: 12px;
+    padding: 1.5rem;
+    animation: slideIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.form-check-input:checked {
+    background-color: var(--chess-red);
+    border-color: var(--chess-red);
+}
+
+.form-check-label {
+    color: #fff;
+}
+
+/* Invalid input styling */
+.form-control:invalid:not(:placeholder-shown),
+.form-select:invalid:not(:placeholder-shown) {
+    border-color: var(--chess-red);
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+}
+
+/* Registration Lists Styling */
+.registration-lists .card {
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.registration-lists .card:hover {
+    transform: translateY(-3px);
+}
+
+.registration-lists .card-header {
+    border-bottom: 2px solid var(--chess-red);
+    padding: 1rem 1.5rem;
+}
+
+.registration-lists .card-header h3 {
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.registration-lists .list-group-item {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.registration-lists .list-group-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.registration-lists .player-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.registration-lists .player-name {
+    font-weight: 600;
+    color: var(--chess-gold);
+}
+
+.registration-lists .player-class {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+}
+
+.registration-lists .player-number {
+    background: var(--chess-red);
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.registration-lists .bg-success {
+    background: linear-gradient(45deg, var(--chess-green), #2aa168) !important;
+}
+
+.registration-lists .bg-warning {
+    background: linear-gradient(45deg, #ffc107, #ffcd39) !important;
+}
+
+/* Animation for new registrations */
+@keyframes highlightNew {
+    0% { background-color: rgba(220, 53, 69, 0.3); }
+    100% { background-color: transparent; }
+}
+
+.new-registration {
+    animation: highlightNew 2s ease-out;
+} 
