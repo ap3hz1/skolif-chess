@@ -45,8 +45,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const name = document.getElementById('name').value;
         const className = document.getElementById('class').value;
         let email = document.getElementById('email').value.toLowerCase();
-        if (!email.endsWith('@elev.gnesta.se')) {
+        
+        // Add @elev.gnesta.se if not present
+        if (!email.includes('@')) {
             email = email + '@elev.gnesta.se';
+        } else if (!email.endsWith('@elev.gnesta.se')) {
+            alert('Du måste använda din @elev.gnesta.se e-postadress');
+            return;
         }
 
         // Check if email is already registered
