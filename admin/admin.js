@@ -29,15 +29,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const totalCount = registrations.length;
         
-        // Calculate current tier using the same logic as script.js
+        // Calculate current tier
         let currentTier = 8;
         if (totalCount >= 64) currentTier = 64;
         else if (totalCount >= 32) currentTier = 32;
         else if (totalCount >= 16) currentTier = 16;
-
-        // Count confirmed and waiting players
-        const confirmedPlayers = registrations.filter(reg => reg.status === 'confirmed');
-        const waitingPlayers = registrations.filter(reg => reg.status === 'waiting');
 
         // Sort by timestamp to ensure consistent ordering
         const allPlayers = [...registrations].sort((a, b) => {
@@ -46,23 +42,27 @@ document.addEventListener('DOMContentLoaded', function() {
             return timeA - timeB;
         });
 
-        // Update player statuses based on their position
+        // Calculate status without updating documents
         allPlayers.forEach((player, index) => {
-            if (index < currentTier && player.status === 'waiting') {
-                // Update to confirmed if within tier limit
-                db.collection('registrations')
-                    .where('email', '==', player.email)
-                    .limit(1)
-                    .get()
-                    .then(snapshot => {
-                        if (!snapshot.empty) {
-                            snapshot.docs[0].ref.update({ status: 'confirmed' });
-                        }
-                    });
-            }
+            player.displayStatus = index < currentTier ? 'confirmed' : 'waiting';
         });
 
-        // Update display
+        // Update the table with calculated status
+        const rows = registrationsTable.getElementsByTagName('tr');
+        for (let i = 0; i < rows.length; i++) {
+            const statusCell = rows[i].cells[4]; // Status is in the 5th column
+            if (statusCell) {
+                const playerEmail = rows[i].cells[2].textContent; // Email is in the 3rd column
+                const player = allPlayers.find(p => p.email === playerEmail);
+                if (player) {
+                    statusCell.textContent = player.displayStatus;
+                    statusCell.className = player.displayStatus === 'confirmed' ? 'text-success' : 'text-warning';
+                }
+            }
+        }
+
+        // Update display counts
+        const confirmedCount = allPlayers.filter((_, index) => index < currentTier).length;
         totalRegistrationsEl.textContent = totalCount;
         confirmedPlayersEl.textContent = `${Math.min(currentTier, totalCount)}/${currentTier}`;
         waitingListEl.textContent = Math.max(0, totalCount - currentTier);
@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load and display registrations
     function loadRegistrations() {
         db.collection('registrations')
-            .orderBy('timestamp', 'desc')
+            .orderBy('timestamp', 'asc') // Changed to ascending to match status calculation
             .onSnapshot((snapshot) => {
                 if (!registrationsTable) {
                     console.error('Registrations table not found');
@@ -128,20 +128,42 @@ document.addEventListener('DOMContentLoaded', function() {
                     const formattedDate = timestamp.toLocaleDateString('sv-SE') + ' ' + 
                                         timestamp.toLocaleTimeString('sv-SE');
 
+                    // Create a details string for the tooltip
+                    const deviceDetails = registration.deviceInfo ? `
+                        IP: ${registration.ipAddress || 'N/A'}
+                        Enhet: ${registration.deviceInfo.platform || 'N/A'}
+                        Webbläsare: ${registration.deviceInfo.userAgent.split(') ')[0] + ')' || 'N/A'}
+                        Skärm: ${registration.deviceInfo.screenResolution || 'N/A'}
+                        Språk: ${registration.deviceInfo.language || 'N/A'}
+                    `.replace(/\n\s+/g, '\n') : 'Ingen enhetsinformation tillgänglig';
+
                     row.innerHTML = `
                         <td>${index}</td>
                         <td>${registration.name}</td>
                         <td>${registration.email}</td>
                         <td>${registration.className}</td>
-                        <td>${registration.status}</td>
+                        <td class="status-cell">...</td>
                         <td>${formattedDate}</td>
                         <td>
+                            <button class="btn btn-info btn-sm me-2" 
+                                data-bs-toggle="tooltip" 
+                                data-bs-placement="left" 
+                                title="${deviceDetails.replace(/"/g, '&quot;')}">
+                                <i class="bi bi-info-circle"></i> Info
+                            </button>
                             <button onclick="removeRegistration('${doc.id}')" class="btn btn-danger btn-sm">
                                 Ta bort
                             </button>
                         </td>
                     `;
                     registrationsTable.appendChild(row);
+
+                    // Initialize tooltips
+                    const tooltips = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                    tooltips.map(function (tooltipTriggerEl) {
+                        return new bootstrap.Tooltip(tooltipTriggerEl);
+                    });
+
                     index++;
                 });
 
@@ -156,8 +178,20 @@ document.addEventListener('DOMContentLoaded', function() {
     window.removeRegistration = async function(docId) {
         if (confirm('Är du säker på att du vill ta bort denna registrering?')) {
             try {
+                // Get the registration data before deleting
+                const docRef = await db.collection('registrations').doc(docId).get();
+                const registration = docRef.data();
+                
+                // Delete from Firestore
                 await db.collection('registrations').doc(docId).delete();
-                // Stats will update automatically through the snapshot listener
+
+                // Broadcast a custom event that will be caught by script.js
+                const event = new CustomEvent('registrationDeleted', {
+                    detail: { email: registration.email }
+                });
+                window.dispatchEvent(event);
+
+                console.log('Registration deleted successfully');
             } catch (error) {
                 console.error("Error removing registration:", error);
                 alert('Ett fel uppstod när registreringen skulle tas bort');

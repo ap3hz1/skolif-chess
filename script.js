@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // Check if Firebase is properly initialized
     if (!window.db) {
         console.error('Firebase database not initialized');
@@ -12,18 +12,33 @@ document.addEventListener('DOMContentLoaded', function() {
     const confirmedCountEl = document.getElementById('confirmedCount');
     const waitingCountEl = document.getElementById('waitingCount');
 
-    // Check if user has already registered
+    // Check if user has already registered and verify if registration still exists
     const hasRegistered = localStorage.getItem('hasRegistered');
-    if (hasRegistered) {
-        form.innerHTML = `
-            <div class="alert alert-info" role="alert">
-                <h4 class="alert-heading">Du är redan anmäld!</h4>
-                <p>Du har redan registrerat dig från denna enhet. Om detta är ett misstag eller om du behöver göra ändringar, 
-                kontakta administratören.</p>
-                <hr>
-                <p class="mb-0">E-post som användes: ${localStorage.getItem('registeredEmail')}</p>
-            </div>
-        `;
+    const storedEmail = localStorage.getItem('registeredEmail');
+    
+    if (hasRegistered && storedEmail) {
+        // Check if the registration still exists in the database
+        const emailSnapshot = await db.collection('registrations')
+            .where('email', '==', storedEmail)
+            .get();
+
+        if (emailSnapshot.empty) {
+            // Registration no longer exists, clear localStorage
+            localStorage.removeItem('hasRegistered');
+            localStorage.removeItem('registeredEmail');
+            localStorage.removeItem('registrationId');
+        } else {
+            // Registration still exists, show the message
+            form.innerHTML = `
+                <div class="alert alert-info" role="alert">
+                    <h4 class="alert-heading">Du är redan anmäld!</h4>
+                    <p>Du har redan registrerat dig från denna enhet. Om detta är ett misstag eller om du behöver göra ändringar, 
+                    kontakta administratören.</p>
+                    <hr>
+                    <p class="mb-0">E-post som användes: ${storedEmail}</p>
+                </div>
+            `;
+        }
     }
 
     // Handle form submission
@@ -62,17 +77,38 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
+            // Get device information
+            const deviceInfo = {
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                vendor: navigator.vendor,
+                language: navigator.language,
+                screenResolution: `${window.screen.width}x${window.screen.height}`,
+                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+            };
+
+            // Get IP address using ipify API
+            const ipResponse = await fetch('https://api.ipify.org?format=json');
+            const ipData = await ipResponse.json();
+
             await db.collection('registrations').add({
                 name: name,
                 email: email,
                 className: className,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                status: 'waiting'
+                status: 'waiting',
+                deviceInfo: deviceInfo,
+                ipAddress: ipData.ip,
+                registrationInfo: {
+                    registeredFrom: window.location.hostname,
+                    browserFingerprint: await generateBrowserFingerprint()
+                }
             });
 
             // Store registration in localStorage
             localStorage.setItem('hasRegistered', 'true');
             localStorage.setItem('registeredEmail', email);
+            localStorage.setItem('registrationId', email); // Store unique identifier
 
             // Replace form with success message
             form.innerHTML = `
@@ -90,12 +126,48 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Check if email already exists
+    // Generate a browser fingerprint
+    async function generateBrowserFingerprint() {
+        const components = [
+            navigator.userAgent,
+            navigator.language,
+            new Date().getTimezoneOffset(),
+            navigator.hardwareConcurrency,
+            navigator.deviceMemory,
+            navigator.platform,
+            navigator.vendor,
+            window.screen.colorDepth,
+            window.screen.pixelDepth,
+            window.screen.width + 'x' + window.screen.height
+        ].join('|');
+        
+        // Create a hash of the components
+        const encoder = new TextEncoder();
+        const data = encoder.encode(components);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Check if email or device has already registered
     async function checkEmailExists(email) {
-        const snapshot = await db.collection('registrations')
+        const emailSnapshot = await db.collection('registrations')
             .where('email', '==', email)
             .get();
-        return !snapshot.empty;
+
+        if (!emailSnapshot.empty) {
+            return true;
+        }
+
+        // Get device fingerprint
+        const browserFingerprint = await generateBrowserFingerprint();
+        
+        // Check for existing registration with same fingerprint
+        const deviceSnapshot = await db.collection('registrations')
+            .where('registrationInfo.browserFingerprint', '==', browserFingerprint)
+            .get();
+
+        return !deviceSnapshot.empty;
     }
 
     // Update registration lists
@@ -177,4 +249,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }, (error) => {
             console.error("Error loading registrations:", error);
         });
+
+    // Listen for registration deletion events from admin panel
+    window.addEventListener('registrationDeleted', function(event) {
+        const deletedEmail = event.detail.email;
+        const storedEmail = localStorage.getItem('registeredEmail');
+        
+        // If this device's registration was deleted, clear localStorage
+        if (deletedEmail === storedEmail) {
+            localStorage.removeItem('hasRegistered');
+            localStorage.removeItem('registeredEmail');
+            localStorage.removeItem('registrationId');
+            
+            // Reload the page to show the registration form again
+            window.location.reload();
+        }
+    });
 }); 
